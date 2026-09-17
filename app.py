@@ -5,67 +5,61 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-WEBHOOK_SECRET = "RAHULVIP2026"
-
 @app.route('/')
 def home():
-    return "🚀 VIP Scraper Engine is ALIVE! Go to /scrape to run the engine."
+    return "🔬 Multi-Source Diagnostic Engine is Live! Go to /test to run diagnostics."
 
-@app.route('/scrape')
-def run_scraper():
-    print(f"--- Scraping Triggered at {datetime.now()} ---")
-    
-    # Using alternative stable economic data feed mirror
-    url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
-    
-    # Advanced headers to spoof a real residential browser and bypass cloud firewalls
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/javascript, */*; q=0.01',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Origin': 'https://www.forexfactory.com',
-        'Referer': 'https://www.forexfactory.com/',
-        'Sec-Ch-Ua': '"Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'cross-site'
+@app.route('/test')
+def run_diagnostics():
+    # Charo sources jo aapne test karne ke liye kahe hain
+    urls = {
+        "forexfactory": "https://www.forexfactory.com/calendar",
+        "investing": "https://in.investing.com/economic-calendar",
+        "mql5": "https://www.mql5.com/en/economic-calendar",
+        "fmp_api": "https://financialmodelingprep.com/stable/economic-calendar?apikey=61PXtNzBFEDnJmHKnnI99na8vrRS95JB"
     }
     
-    try:
-        # Direct request with spoofed browser identity
-        response = requests.get(url, headers=headers, timeout=25)
-        
-        if response.status_code == 429:
-            return jsonify({
-                "status": "error", 
-                "message": "Cloud IP Rate-Limited by Forex Factory CDN. Switching to backup structure soon."
-            }), 429
+    # Standard browser headers to bypass basic blocks
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5'
+    }
+
+    results = {}
+    
+    for name, url in urls.items():
+        try:
+            response = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
             
-        response.raise_for_status()
-        data = response.json()
-        
-        high_impact_usd = []
-        for event in data:
-            if event.get('country') == 'USD' and event.get('impact') == 'High':
-                high_impact_usd.append({
-                    "date": event.get('date', 'Unknown'),
-                    "title": event.get('title', 'Unknown'),
-                    "actual": event.get('actual', 'Pending'),
-                    "forecast": event.get('forecast', 'Awaited'),
-                    "previous": event.get('previous', 'Awaited')
-                })
-        
-        return jsonify({
-            "status": "success",
-            "message": "Data Fetched Successfully via Cloud Bypass",
-            "event_count": len(high_impact_usd),
-            "data": high_impact_usd
-        })
-        
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+            content_sample = ""
+            try:
+                content_type = response.headers.get("Content-Type", "")
+                if "application/json" in content_type:
+                    content_sample = response.json()
+                else:
+                    # HTML ka sirf shuruati sample lenge taaki response clean rahe
+                    content_sample = response.text[:300] + "..."
+            except Exception:
+                content_sample = "Could not parse response body"
+
+            results[name] = {
+                "status_code": response.status_code,
+                "success": response.status_code == 200,
+                "content_type": response.headers.get("Content-Type", "Unknown"),
+                "response_sample": content_sample
+            }
+        except Exception as e:
+            results[name] = {
+                "status_code": "ERROR",
+                "success": False,
+                "error": str(e)
+            }
+
+    return jsonify({
+        "timestamp": str(datetime.now()),
+        "diagnostics": results
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
